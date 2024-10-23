@@ -1,0 +1,36 @@
+name: dough_timer_app
+description: A dough timer app for bakers
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Flutter dependencies
+  cupertino_icons: ^1.0.2
+  shared_preferences: ^2.0.6
+  just_audio: ^0.9.17  # Updated just_audio package version
+  audio_session: ^0.1.7  # Audio session for handling audio focus
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0  # Added flutter_lints package
+
+flutter:
+  uses-material-design: true
+
+# Asset section (if you have assets)
+assets:
+  - assets/timer_end.mp3
+
+# Fonts section (if you want to add custom fonts)
+fonts:
+  - family: Roboto
+    fonts:
+      - asset: fonts/Roboto-Regular.ttf
+      - asset: fonts/Roboto-Bold.ttf
+        weight: 700
