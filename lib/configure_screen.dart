@@ -17,6 +17,17 @@ class ConfigureScreen extends StatefulWidget {
 
 class _ConfigureScreenState extends State<ConfigureScreen> {
   List<Dough> doughList = [];
+  final List<Dough> defaultDoughs = [
+    Dough(name: 'Sando/country/tin bread', speed1Time: 300, speed2Time: 300),
+    Dough(name: 'Miche', speed1Time: 480, speed2Time: 60),
+    Dough(name: 'Wholewheat', speed1Time: 600, speed2Time: 60),
+    Dough(name: 'Bagel', speed1Time: 300, speed2Time: 300),
+    Dough(name: 'Baguette', speed1Time: 180, speed2Time: 180),
+    Dough(name: 'Italian rustic', speed1Time: 300, speed2Time: 600),
+    Dough(name: 'Burger bun and Brioche', speed1Time: 300, speed2Time: 600),
+    Dough(name: 'Croissant and cinnamon scrolls', speed1Time: 300, speed2Time: 480),
+    Dough(name: '100 % rye', speed1Time: 300, speed2Time: 360),
+  ];
 
   TextEditingController nameController = TextEditingController();
   TextEditingController speed1Controller = TextEditingController();
@@ -25,23 +36,7 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDoughList(); // Load saved doughs when screen initializes
-  }
-
-  // Load saved dough data from SharedPreferences
-  Future<void> _loadDoughList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? doughData = prefs.getString('doughList');
-
-    if (doughData != null) {
-      List<dynamic> jsonList = jsonDecode(doughData);
-      setState(() {
-        doughList = jsonList.map((item) => Dough.fromJson(item)).toList();
-      });
-      print('Dough List Loaded: $doughData');  // Debugging line
-    } else {
-      print('No dough list found in SharedPreferences');
-    }
+    doughList = widget.doughList; // Initialize with the passed dough list
   }
 
   // Save dough data to SharedPreferences
@@ -49,7 +44,7 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String jsonList = jsonEncode(doughList.map((dough) => dough.toJson()).toList());
     await prefs.setString('doughList', jsonList);
-    print('Dough List Saved: $jsonList');  // Debugging line
+    print('Dough List Saved: $jsonList'); // Debugging line
   }
 
   // Add a new dough or update existing
@@ -58,8 +53,8 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
       setState(() {
         final newDough = Dough(
           name: nameController.text,
-          speed1Time: int.parse(speed1Controller.text) * 60,  // Convert minutes to seconds
-          speed2Time: int.parse(speed2Controller.text) * 60,  // Convert minutes to seconds
+          speed1Time: int.parse(speed1Controller.text) * 60, // Convert minutes to seconds
+          speed2Time: int.parse(speed2Controller.text) * 60, // Convert minutes to seconds
         );
 
         if (index != null) {
@@ -87,8 +82,8 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
   void editDough(int index) {
     setState(() {
       nameController.text = doughList[index].name;
-      speed1Controller.text = (doughList[index].speed1Time ~/ 60).toString();  // Convert seconds to minutes
-      speed2Controller.text = (doughList[index].speed2Time ~/ 60).toString();  // Convert seconds to minutes
+      speed1Controller.text = (doughList[index].speed1Time ~/ 60).toString(); // Convert seconds to minutes
+      speed2Controller.text = (doughList[index].speed2Time ~/ 60).toString(); // Convert seconds to minutes
     });
   }
 
@@ -98,6 +93,14 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
       doughList.removeAt(index);
     });
     _saveDoughList(); // Save the updated list after deletion
+  }
+
+  // Reset to default doughs
+  void resetToDefault() {
+    setState(() {
+      doughList = List.from(defaultDoughs);
+    });
+    _saveDoughList(); // Save the reset list
   }
 
   @override
@@ -143,6 +146,10 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
           ElevatedButton(
             onPressed: () => addOrUpdateDough(), // Add new dough
             child: const Text('Add Dough'),
+          ),
+          ElevatedButton(
+            onPressed: () => resetToDefault(), // Reset to default doughs
+            child: const Text('Reset to Default'),
           ),
           Expanded(
             child: ListView.builder(

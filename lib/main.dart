@@ -18,6 +18,17 @@ class DoughTimerApp extends StatefulWidget {
 
 class _DoughTimerAppState extends State<DoughTimerApp> {
   List<Dough> doughList = [];
+  final List<Dough> defaultDoughs = [
+    Dough(name: 'Sando/country/tin bread', speed1Time: 300, speed2Time: 300),
+    Dough(name: 'Miche', speed1Time: 480, speed2Time: 60),
+    Dough(name: 'Wholewheat', speed1Time: 600, speed2Time: 60),
+    Dough(name: 'Bagel', speed1Time: 300, speed2Time: 300),
+    Dough(name: 'Baguette', speed1Time: 180, speed2Time: 180),
+    Dough(name: 'Italian rustic', speed1Time: 300, speed2Time: 600),
+    Dough(name: 'Burger bun and Brioche', speed1Time: 300, speed2Time: 600),
+    Dough(name: 'Croissant and cinnamon scrolls', speed1Time: 300, speed2Time: 480),
+    Dough(name: '100 % rye', speed1Time: 300, speed2Time: 360),
+  ];
 
   @override
   void initState() {
@@ -35,6 +46,12 @@ class _DoughTimerAppState extends State<DoughTimerApp> {
       setState(() {
         doughList = jsonList.map((item) => Dough.fromJson(item)).toList();
       });
+    } else {
+      // Save default doughs if no data is found
+      setState(() {
+        doughList = List.from(defaultDoughs);
+      });
+      await _saveDoughList(doughList);
     }
   }
 
@@ -51,54 +68,56 @@ class _DoughTimerAppState extends State<DoughTimerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Dough Timer App'),
-        ),
-        body: Builder(
-          builder: (context) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Navigate to ConfigureScreen, and pass the dough list
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ConfigureScreen(
-                          doughList: doughList,
-                          onSave: (newList) {
-                            _saveDoughList(newList); // Save the updated dough list
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text('Configure Dough Types'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (doughList.isNotEmpty) {
+      home: Builder( // Use Builder to create a new context for Navigator
+        builder: (context) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Dough Timer App'),
+            ),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      // Navigate to ConfigureScreen, and pass the dough list
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => TimerScreen(doughList: doughList),
+                          builder: (context) => ConfigureScreen(
+                            doughList: doughList,
+                            onSave: (newList) {
+                              _saveDoughList(newList); // Save the updated dough list
+                            },
+                          ),
                         ),
                       );
-                    } else {
-                      // Show a snack bar if no dough is configured
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No dough types configured yet!')),
-                      );
-                    }
-                  },
-                  child: const Text('Start Timer'),
-                ),
-              ],
+                    },
+                    child: const Text('Configure Dough Types'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (doughList.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TimerScreen(doughList: doughList),
+                          ),
+                        );
+                      } else {
+                        // Show a snack bar if no dough is configured
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No dough types configured yet!')),
+                        );
+                      }
+                    },
+                    child: const Text('Start Timer'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
