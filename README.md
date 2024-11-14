@@ -75,11 +75,15 @@ flutter build apk --release
 
 You can find the APK file in the \`build/app/outputs/flutter-apk/\` directory.
 
----
-
 ## Screenshots
+---
+<img width="1070" alt="Screenshot 2024-11-14 at 11 14 15 PM" src="https://github.com/user-attachments/assets/db6e97d7-a635-4f0a-a3f8-20a05e8c8cd0">
+<img width="1070" alt="Screenshot 2024-11-14 at 11 14 20 PM" src="https://github.com/user-attachments/assets/e194e58f-1e59-4148-82c4-37d9aa317be7">
+<img width="1070" alt="Screenshot 2024-11-14 at 11 14 27 PM" src="https://github.com/user-attachments/assets/cdaf759a-94f9-48ed-ad58-1f04e3e0efc7">
 
-[Include relevant screenshots of the app interface here.]
+
+
+
 
 ---
 
