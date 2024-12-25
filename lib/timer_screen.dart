@@ -1,27 +1,29 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart'; // Import just_audio package
-import 'package:audio_session/audio_session.dart'; // Import audio_session package
+import 'package:just_audio/just_audio.dart';
 import 'models/dough.dart';
+bool isTestSoundPlaying = false;
 
 class TimerScreen extends StatefulWidget {
   final List<Dough> doughList;
 
-  TimerScreen({required this.doughList});
+  const TimerScreen({super.key, required this.doughList});
 
   @override
   _TimerScreenState createState() => _TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStateMixin {
-  List<Dough?> selectedDoughs = [null, null, null];
-  List<int> speed1Timers = [0, 0, 0];
-  List<int> speed2Timers = [0, 0, 0];
-  List<bool> isSpeed1List = [true, true, true];
-  List<Timer?> timers = [null, null, null];
-  List<bool> isPaused = [false, false, false]; // Tracks if each timer is paused
-  List<bool> isBlinking = [false, false, false]; // Tracks if a timer is blinking for acknowledgment
-  final AudioPlayer audioPlayer = AudioPlayer(); // Initialize just_audio player
+class _TimerScreenState extends State<TimerScreen> with TickerProviderStateMixin {
+  List<Dough?> selectedDoughs = [];
+  List<int> speed1Timers = [];
+  List<int> speed2Timers = [];
+  List<bool> isSpeed1List = [];
+  List<Timer?> timers = [];
+  List<bool> isPaused = [];
+  List<bool> isBlinking = [];
+  List<bool> hasStarted = [];
+  final AudioPlayer audioPlayer = AudioPlayer();
+
   late AnimationController _blinkController;
 
   @override
@@ -29,35 +31,71 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     super.initState();
     _blinkController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    // Cancel all timers and dispose of audioPlayer when the screen is disposed
     for (var timer in timers) {
       timer?.cancel();
     }
-    audioPlayer.dispose(); // Dispose of the audio player
-    _blinkController.dispose(); // Dispose of the animation controller
+    audioPlayer.dispose();
+    _blinkController.dispose();
     super.dispose();
   }
 
-  // Function to play the sound when the timer finishes
+  void addTimer() {
+    setState(() {
+      selectedDoughs.add(null);
+      speed1Timers.add(0);
+      speed2Timers.add(0);
+      isSpeed1List.add(true);
+      timers.add(null);
+      isPaused.add(true);
+      isBlinking.add(false);
+      hasStarted.add(false);
+    });
+  }
+
+  void deleteTimer(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
+    setState(() {
+      timers[index]?.cancel();
+      selectedDoughs.removeAt(index);
+      speed1Timers.removeAt(index);
+      speed2Timers.removeAt(index);
+      isSpeed1List.removeAt(index);
+      timers.removeAt(index);
+      isPaused.removeAt(index);
+      isBlinking.removeAt(index);
+      hasStarted.removeAt(index);
+    });
+  }
+
+  void onDoughChanged(int index, Dough? newValue) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
+    setState(() {
+      selectedDoughs[index] = newValue;
+      if (newValue != null) {
+        speed1Timers[index] = newValue.speed1Time;
+        speed2Timers[index] = newValue.speed2Time;
+      }
+    });
+  }
+
   void playSound() async {
     try {
-      final session = await AudioSession.instance;
-      await session.configure(AudioSessionConfiguration.speech()); // Configure the session
-
-      await audioPlayer.setAsset('assets/timer_end.mp3'); // Load the asset
-      await audioPlayer.play(); // Play the sound
+      await audioPlayer.setAsset('assets/digital.wav');
+      audioPlayer.setLoopMode(LoopMode.one);
+      audioPlayer.play();
     } catch (e) {
       print('Error playing sound: $e');
     }
   }
 
-  // Function to stop the sound
   void stopSound() async {
     try {
       await audioPlayer.stop();
@@ -66,51 +104,48 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     }
   }
 
-  // Start or resume the timer for a specific index (dough type)
   void startOrResumeTimer(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
     if (selectedDoughs[index] == null) {
-      // Ensure a dough type is selected before starting the timer
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a dough type before starting the timer.')),
+        const SnackBar(content: Text('Please select a dough type before starting the timer.')),
       );
       return;
     }
 
-    timers[index]?.cancel(); // Cancel any running timer first
+    timers[index]?.cancel();
 
-    // If the timer was stopped or reset, initialize the times
-    if (speed1Timers[index] == 0 && speed2Timers[index] == 0) {
+    if (!hasStarted[index]) {
       speed1Timers[index] = selectedDoughs[index]!.speed1Time;
       speed2Timers[index] = selectedDoughs[index]!.speed2Time;
       isSpeed1List[index] = true;
+      hasStarted[index] = true;
     }
 
     setState(() {
-      isPaused[index] = false; // Resume or start the timer
-      isBlinking[index] = false; // Stop blinking if it was
+      isPaused[index] = false;
+      isBlinking[index] = false;
     });
 
-    timers[index] = Timer.periodic(Duration(seconds: 1), (timer) {
+    timers[index] = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (isSpeed1List[index]) {
           if (speed1Timers[index] > 0) {
             speed1Timers[index]--;
           } else {
-            // Speed 1 finished, pause and alert the baker
-            isSpeed1List[index] = false;
             isPaused[index] = true;
             isBlinking[index] = true;
-            playSound(); // Play sound when Speed 1 finishes
+            playSound();
             timer.cancel();
           }
         } else {
           if (speed2Timers[index] > 0) {
             speed2Timers[index]--;
           } else {
-            // Speed 2 finished, pause and alert the baker
             isPaused[index] = true;
             isBlinking[index] = true;
-            playSound(); // Play sound when Speed 2 finishes
+            playSound();
             timer.cancel();
           }
         }
@@ -118,69 +153,59 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     });
   }
 
-  // Acknowledge the alert and proceed to the next step or reset
-  void acknowledgeAlert(int index) {
+  void pauseTimer(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
     setState(() {
-      stopSound(); // Stop the sound
-      isBlinking[index] = false; // Stop blinking
-      if (isSpeed1List[index] == false && speed2Timers[index] > 0) {
-        // Resume Speed 2 if Speed 1 was acknowledged
+      isPaused[index] = true;
+      timers[index]?.cancel();
+    });
+  }
+
+  void stopTimer(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
+    setState(() {
+      timers[index]?.cancel();
+      speed1Timers[index] = selectedDoughs[index]?.speed1Time ?? 0;
+      speed2Timers[index] = selectedDoughs[index]?.speed2Time ?? 0;
+      isSpeed1List[index] = true;
+      isPaused[index] = true;
+      isBlinking[index] = false;
+      hasStarted[index] = false;
+      stopSound();
+    });
+  }
+
+  void acknowledgeAlert(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
+
+    setState(() {
+      stopSound();
+      isBlinking[index] = false;
+
+      if (isSpeed1List[index] && speed2Timers[index] > 0) {
+        isSpeed1List[index] = false;
         startOrResumeTimer(index);
       } else {
-        // Reset if Speed 2 was acknowledged
-        speed1Timers[index] = selectedDoughs[index]!.speed1Time;
-        speed2Timers[index] = selectedDoughs[index]!.speed2Time;
-        isSpeed1List[index] = true;
+        stopTimer(index);
       }
     });
   }
 
-  // Pause the timer
-  void pauseTimer(int index) {
-    setState(() {
-      isPaused[index] = true;
-      timers[index]?.cancel(); // Pause the timer
-    });
-  }
+  void addExtraMinute(int index) {
+    if (index < 0 || index >= selectedDoughs.length) return;
 
-  // Stop and reset the timer
-  void stopTimer(int index) {
     setState(() {
-      timers[index]?.cancel(); // Cancel the timer
-      // Reset the timer values for Speed 1 and Speed 2
-      speed1Timers[index] = selectedDoughs[index] != null ? selectedDoughs[index]!.speed1Time : 0;
-      speed2Timers[index] = selectedDoughs[index] != null ? selectedDoughs[index]!.speed2Time : 0;
-      isSpeed1List[index] = true; // Reset to Speed 1
-      isPaused[index] = false; // Unpause the timer
-      isBlinking[index] = false; // Stop blinking
-      stopSound(); // Stop the sound if it is playing
-    });
-  }
-
-  // Delete the timer
-  void deleteTimer(int index) {
-    setState(() {
-      timers[index]?.cancel(); // Cancel the timer
-      selectedDoughs.removeAt(index);
-      speed1Timers.removeAt(index);
-      speed2Timers.removeAt(index);
-      isSpeed1List.removeAt(index);
-      timers.removeAt(index);
-      isPaused.removeAt(index);
-      isBlinking.removeAt(index);
-    });
-  }
-
-  // Add a new timer
-  void addTimer() {
-    setState(() {
-      selectedDoughs.add(null); // Add a placeholder for the dropdown selection
-      speed1Timers.add(0); // Default to 0 seconds for new timers
-      speed2Timers.add(0); // Default to 0 seconds for new timers
-      isSpeed1List.add(true);
-      timers.add(null); // Add a placeholder for the Timer object
-      isPaused.add(false); // Initially, the timer is not paused
-      isBlinking.add(false); // Initially, the timer is not blinking
+      if (isSpeed1List[index]) {
+        speed1Timers[index] += 60;
+      } else {
+        speed2Timers[index] += 60;
+      }
+      isPaused[index] = false;
+      isBlinking[index] = false;
+      stopSound();
+      startOrResumeTimer(index);
     });
   }
 
@@ -188,102 +213,69 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dough Timers'),
+        title: const Text('Mixer Timers'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const SizedBox(height: 20),
+                      // Add Timer Button
+          ElevatedButton(
+            onPressed: addTimer,
+            child: const Text('Add Timer'),
+          ),
 
-            // List of timers
-            Expanded(
-              child: ListView.builder(
+          // Test Sound Button
+          ElevatedButton(
+  onPressed: () async {
+    try {
+      if (audioPlayer.playing) {
+        // Stop the sound and update state only after confirmation
+        await audioPlayer.stop();
+        setState(() {
+          isTestSoundPlaying = false;
+        });
+      } else {
+        // Play the sound and update state only after confirmation
+        await audioPlayer.setAsset('assets/digital.wav');
+        await audioPlayer.setLoopMode(LoopMode.one);
+        await audioPlayer.play();
+        setState(() {
+          isTestSoundPlaying = true;
+        });
+      }
+    } catch (e) {
+      print('Error handling test sound: $e');
+    }
+  },
+  child: Text(isTestSoundPlaying ? 'Stop Sound' : 'Test Sound'),
+),
+
+
+
+          // Timer List
+          Expanded(
+            child: ListView.builder(
+
                 itemCount: selectedDoughs.length,
                 itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: AnimatedBuilder(
-                      animation: _blinkController,
-                      builder: (context, child) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: isBlinking[index] && _blinkController.value > 0.5
-                                ? Colors.yellowAccent.withOpacity(0.5)
-                                : Colors.transparent,
-                          ),
-                          child: Column(
-                            children: [
-                              // Dropdown to select dough type
-                              DropdownButton<Dough>(
-                                hint: const Text('Select Dough Type'),
-                                value: selectedDoughs[index] != null && widget.doughList.contains(selectedDoughs[index])
-                                    ? selectedDoughs[index]
-                                    : null,
-                                items: widget.doughList.map((Dough dough) {
-                                  return DropdownMenuItem<Dough>(
-                                    value: dough,
-                                    child: Text(dough.name),
-                                  );
-                                }).toList(),
-                                onChanged: (Dough? newDough) {
-                                  setState(() {
-                                    selectedDoughs[index] = newDough;
-                                    if (newDough != null) {
-                                      speed1Timers[index] = newDough.speed1Time;
-                                      speed2Timers[index] = newDough.speed2Time;
-                                    }
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 10),
-
-                              // Display timer status
-                              if (selectedDoughs[index] != null) ...[
-                                Text('Speed 1: ${speed1Timers[index]}s remaining',
-                                    style: TextStyle(
-                                        color: isBlinking[index] ? Colors.red : Colors.black)),
-                                Text('Speed 2: ${speed2Timers[index]}s remaining',
-                                    style: TextStyle(
-                                        color: isBlinking[index] ? Colors.red : Colors.black)),
-                                const SizedBox(height: 10),
-
-                                // Timer control buttons (Start/Resume, Pause, Stop, Delete, Acknowledge)
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    if (!isBlinking[index])
-                                      ElevatedButton(
-                                        onPressed: isPaused[index]
-                                            ? () => startOrResumeTimer(index) // Resume
-                                            : () => startOrResumeTimer(index), // Start
-                                        child: Text(isPaused[index] ? 'Resume' : 'Start'),
-                                      ),
-                                    if (isBlinking[index])
-                                      ElevatedButton(
-                                        onPressed: () => acknowledgeAlert(index),
-                                        child: const Text('Acknowledge'),
-                                      ),
-                                    ElevatedButton(
-                                      onPressed: () => pauseTimer(index),
-                                      child: const Text('Pause'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => stopTimer(index),
-                                      child: const Text('Stop'),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      onPressed: () => deleteTimer(index),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                  return TimerCard(
+                    index: index,
+                    doughList: widget.doughList,
+                    selectedDough: selectedDoughs[index],
+                    speed1Time: speed1Timers[index],
+                    speed2Time: speed2Timers[index],
+                    isPaused: isPaused[index],
+                    isBlinking: isBlinking[index],
+                    hasStarted: hasStarted[index],
+                    onStart: () => startOrResumeTimer(index),
+                    onPause: () => pauseTimer(index),
+                    onStop: () => stopTimer(index),
+                    onDelete: () => deleteTimer(index),
+                    onDoughChanged: onDoughChanged,
+                    onAcknowledge: () => acknowledgeAlert(index),
+                    onAddExtraMinute: () => addExtraMinute(index),
+                    blinkController: _blinkController,
                   );
                 },
               ),
@@ -294,3 +286,107 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     );
   }
 }
+
+class TimerCard extends StatelessWidget {
+  final int index;
+  final List<Dough> doughList;
+  final Dough? selectedDough;
+  final int speed1Time;
+  final int speed2Time;
+  final bool isPaused;
+  final bool isBlinking;
+  final bool hasStarted;
+  final VoidCallback onStart;
+  final VoidCallback onPause;
+  final VoidCallback onStop;
+  final VoidCallback onDelete;
+  final VoidCallback onAcknowledge;
+  final VoidCallback onAddExtraMinute;
+  final void Function(int index, Dough? newValue) onDoughChanged;
+  final AnimationController blinkController;
+
+  const TimerCard({
+    super.key,
+    required this.index,
+    required this.doughList,
+    required this.selectedDough,
+    required this.speed1Time,
+    required this.speed2Time,
+    required this.isPaused,
+    required this.isBlinking,
+    required this.hasStarted,
+    required this.onStart,
+    required this.onPause,
+    required this.onStop,
+    required this.onDelete,
+    required this.onAcknowledge,
+    required this.onAddExtraMinute,
+    required this.onDoughChanged,
+    required this.blinkController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: blinkController,
+      builder: (context, child) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
+          color: isBlinking
+              ? Color.lerp(Colors.yellow, Colors.white, blinkController.value)
+              : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownButton<Dough>(
+                  hint: const Text('Select Dough Type'),
+                  value: selectedDough,
+                  items: doughList.map((Dough dough) {
+                    return DropdownMenuItem<Dough>(
+                      value: dough,
+                      child: Text(dough.name),
+                    );
+                  }).toList(),
+                  onChanged: (Dough? newValue) => onDoughChanged(index, newValue),
+                ),
+                Text('Speed 1 Time: ${speed1Time}s'),
+                Text('Speed 2 Time: ${speed2Time}s'),
+                                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    if (isBlinking) ...[
+                      ElevatedButton(
+                        onPressed: onAcknowledge,
+                        child: const Text('Acknowledge'),
+                      ),
+                      ElevatedButton(
+                        onPressed: onAddExtraMinute,
+                        child: const Text('+1 Min'),
+                      ),
+                    ] else ...[
+                      ElevatedButton(
+                        onPressed: !hasStarted || isPaused ? onStart : onPause,
+                        child: Text(!hasStarted ? 'Start' : isPaused ? 'Resume' : 'Pause'),
+                      ),
+                      ElevatedButton(
+                        onPressed: onStop,
+                        child: const Text('Stop'),
+                      ),
+                    ],
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: onDelete,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+

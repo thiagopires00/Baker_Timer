@@ -8,29 +8,32 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  provider: any
 
-  # Flutter dependencies
   cupertino_icons: ^1.0.2
   shared_preferences: ^2.0.6
   just_audio: ^0.9.17  # Updated just_audio package version
   audio_session: ^0.1.7  # Audio session for handling audio focus
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0  # Added flutter_lints package
+  flutter_lints: ^5.0.0  # Added flutter_lints package
+  flutter_launcher_icons: ^0.14.1  # Include flutter_launcher_icons for app icon generation
 
 flutter:
   uses-material-design: true
 
-# Asset section (if you have assets)
-assets:
-  - assets/timer_end.mp3
+  assets:
+    - assets/digital.wav
+    - assets/logo.png
 
-# Fonts section (if you want to add custom fonts)
 fonts:
   - family: Roboto
     fonts:
       - asset: fonts/Roboto-Regular.ttf
       - asset: fonts/Roboto-Bold.ttf
         weight: 700
+
+

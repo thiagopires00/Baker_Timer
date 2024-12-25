@@ -28,6 +28,7 @@ class _DoughTimerAppState extends State<DoughTimerApp> {
     Dough(name: 'Burger bun and Brioche', speed1Time: 300, speed2Time: 600),
     Dough(name: 'Croissant and cinnamon scrolls', speed1Time: 300, speed2Time: 480),
     Dough(name: '100 % rye', speed1Time: 300, speed2Time: 360),
+    Dough(name: 'Hoagie', speed1Time: 600, speed2Time: 300),
   ];
 
   @override
@@ -37,23 +38,18 @@ class _DoughTimerAppState extends State<DoughTimerApp> {
   }
 
   // Load dough list from SharedPreferences
-  Future<void> _loadDoughList() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? doughData = prefs.getString('doughList');
+Future<void> _loadDoughList() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? doughData = prefs.getString('doughList');
 
-    if (doughData != null) {
-      List<dynamic> jsonList = jsonDecode(doughData);
-      setState(() {
-        doughList = jsonList.map((item) => Dough.fromJson(item)).toList();
-      });
-    } else {
-      // Save default doughs if no data is found
-      setState(() {
-        doughList = List.from(defaultDoughs);
-      });
-      await _saveDoughList(doughList);
-    }
+  if (doughData != null) {
+    List<dynamic> jsonList = jsonDecode(doughData);
+    setState(() {
+      doughList = jsonList.map((item) => Dough.fromJson(item)).toList();
+    });
   }
+}
+
 
   // Save dough list to SharedPreferences
   Future<void> _saveDoughList(List<Dough> newList) async {
@@ -68,11 +64,16 @@ class _DoughTimerAppState extends State<DoughTimerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Bakers Timer', // Updated app title
+      debugShowCheckedModeBanner: false, // Hide the debug banner
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
       home: Builder( // Use Builder to create a new context for Navigator
         builder: (context) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Dough Timer App'),
+              title: const Text('Bakers Timer'),
             ),
             body: Center(
               child: Column(

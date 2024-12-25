@@ -6,7 +6,7 @@ void main() {
   testWidgets('Test showing snack bar when no dough is configured', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: Scaffold(
           body: DoughTimerApp(),
         ),

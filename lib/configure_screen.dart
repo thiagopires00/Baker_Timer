@@ -9,7 +9,7 @@ class ConfigureScreen extends StatefulWidget {
   final List<Dough> doughList;
   final OnSaveCallback onSave;
 
-  ConfigureScreen({required this.doughList, required this.onSave});
+  const ConfigureScreen({super.key, required this.doughList, required this.onSave});
 
   @override
   _ConfigureScreenState createState() => _ConfigureScreenState();
@@ -27,29 +27,52 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
     Dough(name: 'Burger bun and Brioche', speed1Time: 300, speed2Time: 600),
     Dough(name: 'Croissant and cinnamon scrolls', speed1Time: 300, speed2Time: 480),
     Dough(name: '100 % rye', speed1Time: 300, speed2Time: 360),
+    Dough(name: 'Hoagie', speed1Time: 1, speed2Time: 300),
   ];
 
   TextEditingController nameController = TextEditingController();
   TextEditingController speed1Controller = TextEditingController();
   TextEditingController speed2Controller = TextEditingController();
 
+  int? editingIndex; // Track the index of the dough being edited
+
   @override
   void initState() {
     super.initState();
-    doughList = widget.doughList; // Initialize with the passed dough list
+    loadDoughList(); // Load saved doughs or use the passed list
+  }
+
+  // Load dough data from SharedPreferences
+  Future<void> loadDoughList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? jsonList = prefs.getString('doughList');
+
+    if (jsonList != null) {
+      setState(() {
+        doughList = (jsonDecode(jsonList) as List)
+            .map((data) => Dough.fromJson(data))
+            .toList();
+      });
+    } else {
+      setState(() {
+        doughList = widget.doughList; // Use the passed dough list
+      });
+    }
   }
 
   // Save dough data to SharedPreferences
-  Future<void> _saveDoughList() async {
+  Future<void> saveDoughList() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String jsonList = jsonEncode(doughList.map((dough) => dough.toJson()).toList());
     await prefs.setString('doughList', jsonList);
-    print('Dough List Saved: $jsonList'); // Debugging line
+    widget.onSave(doughList); // Notify parent widget of changes
   }
 
-  // Add a new dough or update existing
-  void addOrUpdateDough({int? index}) {
-    if (nameController.text.isNotEmpty && speed1Controller.text.isNotEmpty && speed2Controller.text.isNotEmpty) {
+  // Add a new dough or update an existing one
+  void addOrUpdateDough() {
+    if (nameController.text.isNotEmpty &&
+        speed1Controller.text.isNotEmpty &&
+        speed2Controller.text.isNotEmpty) {
       setState(() {
         final newDough = Dough(
           name: nameController.text,
@@ -57,20 +80,22 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
           speed2Time: int.parse(speed2Controller.text) * 60, // Convert minutes to seconds
         );
 
-        if (index != null) {
+        if (editingIndex != null) {
           // Update existing dough
-          doughList[index] = newDough;
+          doughList[editingIndex!] = newDough;
         } else {
           // Add new dough
           doughList.add(newDough);
         }
 
+        // Clear the form and reset editing state
         nameController.clear();
         speed1Controller.clear();
         speed2Controller.clear();
+        editingIndex = null;
       });
 
-      _saveDoughList(); // Save the updated list
+      saveDoughList(); // Save the updated list
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
@@ -84,6 +109,7 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
       nameController.text = doughList[index].name;
       speed1Controller.text = (doughList[index].speed1Time ~/ 60).toString(); // Convert seconds to minutes
       speed2Controller.text = (doughList[index].speed2Time ~/ 60).toString(); // Convert seconds to minutes
+      editingIndex = index; // Set the index for editing
     });
   }
 
@@ -92,15 +118,15 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
     setState(() {
       doughList.removeAt(index);
     });
-    _saveDoughList(); // Save the updated list after deletion
+    saveDoughList(); // Save the updated list after deletion
   }
 
   // Reset to default doughs
-  void resetToDefault() {
+  void resetToDefault() async {
     setState(() {
-      doughList = List.from(defaultDoughs);
+      doughList = List.from(defaultDoughs); // Replace with defaults
     });
-    _saveDoughList(); // Save the reset list
+    await saveDoughList(); // Persist the reset list
   }
 
   @override
@@ -108,15 +134,6 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Configure Dough Types'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              widget.onSave(doughList); // Pass the dough list back to the parent
-              Navigator.pop(context); // Close the screen
-            },
-          )
-        ],
       ),
       body: Column(
         children: [
@@ -131,7 +148,7 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               controller: speed1Controller,
-              decoration: const InputDecoration(labelText: 'Speed 1 Time (minutes)'), // Updated label to minutes
+              decoration: const InputDecoration(labelText: 'Speed 1 Time (minutes)'),
               keyboardType: TextInputType.number,
             ),
           ),
@@ -139,16 +156,16 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               controller: speed2Controller,
-              decoration: const InputDecoration(labelText: 'Speed 2 Time (minutes)'), // Updated label to minutes
+              decoration: const InputDecoration(labelText: 'Speed 2 Time (minutes)'),
               keyboardType: TextInputType.number,
             ),
           ),
           ElevatedButton(
-            onPressed: () => addOrUpdateDough(), // Add new dough
-            child: const Text('Add Dough'),
+            onPressed: addOrUpdateDough,
+            child: Text(editingIndex == null ? 'Add Dough' : 'Update Dough'),
           ),
           ElevatedButton(
-            onPressed: () => resetToDefault(), // Reset to default doughs
+            onPressed: resetToDefault,
             child: const Text('Reset to Default'),
           ),
           Expanded(
@@ -166,13 +183,13 @@ class _ConfigureScreenState extends State<ConfigureScreen> {
                       IconButton(
                         icon: const Icon(Icons.edit),
                         onPressed: () {
-                          editDough(index); // Edit existing dough
+                          editDough(index);
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: () {
-                          deleteDough(index); // Delete dough
+                          deleteDough(index);
                         },
                       ),
                     ],
